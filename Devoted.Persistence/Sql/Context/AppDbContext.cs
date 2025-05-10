@@ -19,6 +19,7 @@ namespace Devoted.Persistence.Sql.Context
             base.OnModelCreating(mb);
 
             mb.Entity<Products>().Property(p => p.Id).ValueGeneratedOnAdd();
+            mb.Entity<Orders>().Property(p => p.Id).ValueGeneratedOnAdd();
         }
     }
 }

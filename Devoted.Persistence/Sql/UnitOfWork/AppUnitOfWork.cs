@@ -12,12 +12,15 @@ namespace Devoted.Persistence.Sql.UnitOfWork
         private readonly IServiceProvider _sp;
         private readonly Dictionary<Type, object> _cache = new();
         public IProductRepository ProductRepository { get; }
+        public IOrderRepository OrderRepository { get; }
 
         public AppUnitOfWork(AppDbContext ctx, IServiceProvider sp)
         {
             _ctx = ctx;
             _sp = sp;
             ProductRepository = sp.GetRequiredService<IProductRepository>();
+            OrderRepository = sp.GetRequiredService<IOrderRepository>();
+
         }
 
         public IGenericSqlRepository<T> Repository<T>() where T : BaseSqlEntity
