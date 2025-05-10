@@ -16,18 +16,16 @@ namespace Devoted.Persistence
             this IServiceCollection services,
             IConfiguration cfg)
         {
-            // Register AppDbContext _as_ SqlDbContext
             services.AddDbContext<SqlDbContext, AppDbContext>(opts =>
                 opts.UseNpgsql(cfg.GetConnectionString("PostgresConnection")));
 
-            // Generic repo
             services.AddScoped(typeof(IGenericSqlRepository<>),
                                typeof(GenericRepository<>));
 
-            // Specific product repo
             services.AddScoped<IProductRepository, ProductRepository>();
 
-            // Unit-of-Work
+            services.AddScoped<IOrderRepository, OrderRepository>();
+
             services.AddScoped<IAppUnitOfWork, AppUnitOfWork>();
 
             return services;
