@@ -1,10 +1,11 @@
-﻿using System.Net.Http.Headers;
-using Devoted.Business;
-using Devoted.Business.Interfaces;
+﻿using Devoted.Business.Interfaces;
 using Devoted.Business.Services;
+using Devoted.Business;
 using Devoted.Persistence;
 using Polly;
 using Polly.Extensions.Http;
+using Serilog;
+using System.Net.Http.Headers;
 
 namespace Devoted.API
 {
@@ -15,13 +16,13 @@ namespace Devoted.API
 
         public void ConfigureServices(IServiceCollection services)
         {
-            // 1) Persistence + Business
+
+            services.AddHealthChecks();
+
             services.RegisterPersistenceServices(_config);
             services.RegisterBusinessServices();
-
             AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
-            // 2) Typed HttpClient for Product Service with Polly policies
             services.AddHttpClient<IProductClient, ProductClient>(client =>
             {
                 client.BaseAddress = new Uri(_config["Services:ProductUrl"]);
@@ -30,12 +31,11 @@ namespace Devoted.API
             })
             .AddPolicyHandler(HttpPolicyExtensions
                 .HandleTransientHttpError()
-                .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromMilliseconds(500)))
+                .WaitAndRetryAsync(3, _ => TimeSpan.FromMilliseconds(500)))
             .AddPolicyHandler(HttpPolicyExtensions
                 .HandleTransientHttpError()
                 .CircuitBreakerAsync(2, TimeSpan.FromSeconds(10)));
 
-            // 3) MVC + Swagger
             services.AddControllers();
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen();
@@ -43,7 +43,7 @@ namespace Devoted.API
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            // 4) Serilog already configured in Program.cs via Host.UseSerilog()
+            app.UseSerilogRequestLogging();
 
             if (env.IsDevelopment())
             {
@@ -55,12 +55,13 @@ namespace Devoted.API
 
             app.UseHttpsRedirection();
             app.UseRouting();
-            app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapHealthChecks("/health");
                 endpoints.MapControllers();
             });
         }
+
     }
 }
