@@ -11,11 +11,13 @@ namespace Devoted.Persistence.Sql.UnitOfWork
         private readonly AppDbContext _ctx;
         private readonly IServiceProvider _sp;
         private readonly Dictionary<Type, object> _cache = new();
+        public IProductRepository ProductRepository { get; }
 
         public AppUnitOfWork(AppDbContext ctx, IServiceProvider sp)
         {
             _ctx = ctx;
             _sp = sp;
+            ProductRepository = sp.GetRequiredService<IProductRepository>();
         }
 
         public IGenericSqlRepository<T> Repository<T>() where T : BaseSqlEntity

@@ -1,4 +1,4 @@
-﻿
+﻿using Devoted.GenericLibrary.GenericSql.Context;   // ← for SqlDbContext
 using Devoted.GenericLibrary.GenericSql.Interfaces;
 using Devoted.Persistence.Sql.Context;
 using Devoted.Persistence.Sql.GenericRepository;
@@ -13,15 +13,21 @@ namespace Devoted.Persistence
     public static class PersistenceServiceCollectionExtensions
     {
         public static IServiceCollection RegisterPersistenceServices(
-            this IServiceCollection services, IConfiguration cfg)
+            this IServiceCollection services,
+            IConfiguration cfg)
         {
-            services.AddDbContext<AppDbContext>(opts =>
+            // Register AppDbContext _as_ SqlDbContext
+            services.AddDbContext<SqlDbContext, AppDbContext>(opts =>
                 opts.UseNpgsql(cfg.GetConnectionString("PostgresConnection")));
 
-            // Bind Core generic repository to our adapter
+            // Generic repo
             services.AddScoped(typeof(IGenericSqlRepository<>),
                                typeof(GenericRepository<>));
 
+            // Specific product repo
+            services.AddScoped<IProductRepository, ProductRepository>();
+
+            // Unit-of-Work
             services.AddScoped<IAppUnitOfWork, AppUnitOfWork>();
 
             return services;
