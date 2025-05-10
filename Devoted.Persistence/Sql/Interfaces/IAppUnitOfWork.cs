@@ -7,6 +7,7 @@ namespace Devoted.Persistence.Sql.Interfaces
     {
         IGenericSqlRepository<T> Repository<T>() where T : BaseSqlEntity;
         IProductRepository ProductRepository { get; }
+        IOrderRepository OrderRepository { get; }
         Task SaveChangesAsync();
     }
 }
