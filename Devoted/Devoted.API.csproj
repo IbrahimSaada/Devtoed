@@ -11,10 +11,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Devoted.Business\Devoted.Business.csproj" />
     <ProjectReference Include="..\Devoted.Domain\Devoted.Domain.csproj" />
     <ProjectReference Include="..\Devoted.Persistence\Devoted.Persistence.csproj" />

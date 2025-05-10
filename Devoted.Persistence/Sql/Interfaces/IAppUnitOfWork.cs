@@ -6,6 +6,7 @@ namespace Devoted.Persistence.Sql.Interfaces
     public interface IAppUnitOfWork : IAsyncDisposable
     {
         IGenericSqlRepository<T> Repository<T>() where T : BaseSqlEntity;
+        IProductRepository ProductRepository { get; }
         Task SaveChangesAsync();
     }
 }

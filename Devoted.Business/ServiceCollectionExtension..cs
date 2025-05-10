@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Devoted.Business.Interfaces;
+using Devoted.Business.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Devoted.Business
 {
@@ -6,6 +8,7 @@ namespace Devoted.Business
     {
         public static IServiceCollection RegisterBusinessServices(this IServiceCollection services)
         {
+            services.AddScoped<IProductService, ProductService>();
             return services;
         }
     }

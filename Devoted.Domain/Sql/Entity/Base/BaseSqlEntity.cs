@@ -16,13 +16,13 @@ namespace Devoted.Domain.Sql.Entity.Base
         [Column("recordguid")]
         public Guid RecordGuid { get; set; } = Guid.NewGuid();
 
-        [Column("is_deleted")]
+        [Column("isdeleted")]
         public bool IsDeleted { get; set; }
 
-        [Column("created_at")]
+        [Column("createdat")]
         public DateTime CreatedAt { get; set; }
 
-        [Column("updated_at")]
+        [Column("updatedat")]
         public DateTime? UpdatedAt { get; set; }
     }
 }
