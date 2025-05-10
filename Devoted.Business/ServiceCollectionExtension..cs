@@ -9,6 +9,8 @@ namespace Devoted.Business
         public static IServiceCollection RegisterBusinessServices(this IServiceCollection services)
         {
             services.AddScoped<IProductService, ProductService>();
+            services.AddScoped<IOrderService, OrderService>();
+
             return services;
         }
     }
