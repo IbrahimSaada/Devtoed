@@ -12,129 +12,46 @@ namespace Devoted.Products.API.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly IProductService _svc;
+        public ProductsController(IProductService svc) => _svc = svc;
 
-        public ProductsController(IProductService svc)
-        {
-            _svc = svc;
-        }
+        [HttpPost("create")]
+        public async Task<IActionResult> Create(CreateProductRequest req, CancellationToken ct)
+            => Ok(await _svc.CreateAsync(req, ct));
 
-        /* --------------------- Create --------------------- */
+        [HttpPost("bulkCreate")]
+        public async Task<IActionResult> BulkCreate(IEnumerable<CreateProductRequest> reqs, CancellationToken ct)
+            => Ok(await _svc.BulkCreateAsync(reqs, ct));
 
-        [HttpPost]
-        public async Task<IActionResult> Create(
-            [FromBody] CreateProductRequest req,
-            CancellationToken ct)
-        {
-            var id = await _svc.CreateAsync(req, ct);
-            return CreatedAtAction(nameof(Get),
-                new { id },
-                new BaseResponse
-                {
-                    Message = "Product created",
-                    Data = new { Id = id }
-                });
-        }
-
-        [HttpPost("bulk")]
-        public async Task<IActionResult> BulkCreate(
-            [FromBody] IEnumerable<CreateProductRequest> reqs,
-            CancellationToken ct)
-        {
-            var ids = await _svc.BulkCreateAsync(reqs, ct);
-            return Ok(new BaseResponse
-            {
-                Message = "Bulk created",
-                Data = ids
-            });
-        }
-
-        /* --------------------- Read ---------------------- */
-
-        [HttpGet("{id:long}")]
+        [HttpGet("get/{id:long}")]
         public async Task<IActionResult> Get(long id, CancellationToken ct)
-        {
-            var dto = await _svc.GetAsync(id, ct);          // throws if not found
-            return Ok(new BaseResponse { Data = dto });
-        }
+            => Ok(await _svc.GetAsync(id, ct));
 
-        [HttpGet]
-        public async Task<IActionResult> List(
-            [FromQuery] PaginationRequest q,
-            CancellationToken ct)
-        {
-            var (data, total, left) = await _svc.ListAsync(q.Skip, q.Limit, ct);
-            return Ok(new BaseResponse
-            {
-                Data = new
-                {
-                    Products = data,
-                    Pagination = new PaginationResult
-                    {
-                        TotalDocuments = total,
-                        DocumentsLeft = left
-                    }
-                }
-            });
-        }
+        [HttpGet("all")]
+        public async Task<IActionResult> GetAll([FromQuery] PaginationRequest q, CancellationToken ct)
+            => Ok(await _svc.ListAsync(q.Skip, q.Limit, ct));
 
-        /* --------------------- Update -------------------- */
+        [HttpPut("update/{id:long}")]
+        public async Task<IActionResult> Update(long id, UpdateProductRequest req, CancellationToken ct)
+            => Ok(await _svc.UpdateAsync(id, req, ct));
 
-        [HttpPut("{id:long}")]
-        public async Task<IActionResult> Update(
-            long id,
-            [FromBody] UpdateProductRequest req,
-            CancellationToken ct)
-        {
-            await _svc.UpdateAsync(id, req, ct);   // throws if not found
-            return NoContent();
-        }
+        [HttpPut("bulkUpdate")]
+        public async Task<IActionResult> BulkUpdate(IEnumerable<BulkUpdateDto> batch, CancellationToken ct)
+            => Ok(await _svc.BulkUpdateAsync(batch, ct));
 
-        [HttpPut("bulk")]
-        public async Task<IActionResult> BulkUpdate(
-            [FromBody] IEnumerable<BulkUpdateDto> batch,
-            CancellationToken ct)
-        {
-            var n = await _svc.BulkUpdateAsync(batch, ct);
-            return Ok(new BaseResponse
-            {
-                Message = $"Updated {n} products"
-            });
-        }
-
-        /* -------------------- Delete -------------------- */
-
-        [HttpDelete("{id:long}")]
+        [HttpDelete("delete/{id:long}")]
         public async Task<IActionResult> Delete(long id, CancellationToken ct)
-        {
-            await _svc.SoftDeleteAsync(id, ct);    // throws if not found
-            return NoContent();
-        }
+            => Ok(await _svc.DeleteAsync(id, ct));
 
-        [HttpDelete("bulk")]
-        public async Task<IActionResult> BulkDelete(
-            [FromBody] BulkIdRequest ids,
-            CancellationToken ct)
-        {
-            var n = await _svc.BulkSoftDeleteAsync(ids.Ids, ct);
-            return Ok(new BaseResponse { Message = $"Soft‑deleted {n} products" });
-        }
+        [HttpDelete("bulkDelete")]
+        public async Task<IActionResult> BulkDelete([FromBody] BulkIdRequest ids, CancellationToken ct)
+            => Ok(await _svc.BulkDeleteAsync(ids.Ids, ct));
 
-        /* ------------------- Restore -------------------- */
-
-        [HttpPost("{id:long}/restore")]
+        [HttpPost("restore/{id:long}")]
         public async Task<IActionResult> Restore(long id, CancellationToken ct)
-        {
-            await _svc.RestoreAsync(id, ct);      // throws if not found / not deleted
-            return Ok(new BaseResponse { Message = "Restored" });
-        }
+            => Ok(await _svc.RestoreAsync(id, ct));
 
-        [HttpPost("bulk/restore")]
-        public async Task<IActionResult> BulkRestore(
-            [FromBody] BulkIdRequest ids,
-            CancellationToken ct)
-        {
-            var n = await _svc.BulkRestoreAsync(ids.Ids, ct);
-            return Ok(new BaseResponse { Message = $"Restored {n} products" });
-        }
+        [HttpPost("bulkRestore")]
+        public async Task<IActionResult> BulkRestore([FromBody] BulkIdRequest ids, CancellationToken ct)
+            => Ok(await _svc.BulkRestoreAsync(ids.Ids, ct));
     }
 }

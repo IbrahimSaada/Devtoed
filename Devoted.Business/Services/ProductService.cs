@@ -3,6 +3,7 @@ using Devoted.Business.Interfaces;
 using Devoted.Domain.Sql.Dto;
 using Devoted.Domain.Sql.Entity;
 using Devoted.Domain.Sql.Request.Product;
+using Devoted.Domain.Sql.Response.Base;
 using Devoted.Persistence.Sql.Interfaces;
 using Microsoft.Extensions.Logging;
 
@@ -14,53 +15,34 @@ namespace Devoted.Business.Services
         private readonly IAppUnitOfWork _uow;
         private readonly ILogger<ProductService> _log;
 
-        public ProductService(IAppUnitOfWork uow,
-                              IProductRepository repo,
-                              ILogger<ProductService> log)
+        public ProductService(
+            IAppUnitOfWork uow,
+            IProductRepository repo,
+            ILogger<ProductService> log)
         {
             _uow = uow;
             _repo = repo;
             _log = log;
         }
 
-
-        public async Task<ProductDto?> GetAsync(long id, CancellationToken ct)
-        {
-            var prod = await _repo.FindAsync(x => x.Id == id && !x.IsDeleted, asNoTracking: true);
-            if (prod is null)
-                throw new ItemNotFoundOrNullError($"Product {id} not found");
-            return Map(prod);
-        }
-
-        public async Task<(IEnumerable<ProductDto>, long, long)>
-            ListAsync(int skip, int limit, CancellationToken ct)
-        {
-            if (limit <= 0) throw new UserError("Limit must be greater than 0");
-
-            var (rows, total, left) = await _repo.FindAllAsync(x => !x.IsDeleted,
-                                                               limit, skip,
-                                                               returnPaginationResult: true,
-                                                               asNoTracking: true);
-            return (rows.Select(Map), total, left);
-        }
-
-
-        public async Task<long> CreateAsync(CreateProductRequest req, CancellationToken ct)
+        public async Task<BaseResponse> CreateAsync(CreateProductRequest req, CancellationToken ct)
         {
             ValidateRequest(req);
-
             var entity = new Products { Name = req.Name, Price = req.Price };
             await _repo.CreateAsync(entity);
             await _uow.SaveChangesAsync();
 
-            _log.LogInformation("Product {Id} created", entity.Id);
-            return entity.Id;
+            _log.LogInformation("Created product {Id}", entity.Id);
+            return new BaseResponse
+            {
+                Message = "Product created",
+                Data = new { Id = entity.Id }
+            };
         }
 
-        public async Task<IEnumerable<long>> BulkCreateAsync(IEnumerable<CreateProductRequest> reqs, CancellationToken ct)
+        public async Task<BaseResponse> BulkCreateAsync(IEnumerable<CreateProductRequest> reqs, CancellationToken ct)
         {
-            var entities = reqs.Select(r =>
-            {
+            var entities = reqs.Select(r => {
                 ValidateRequest(r);
                 return new Products { Name = r.Name, Price = r.Price };
             }).ToList();
@@ -68,36 +50,68 @@ namespace Devoted.Business.Services
             await _repo.CreateManyAsync(entities);
             await _uow.SaveChangesAsync();
 
-            _log.LogInformation("Bulk created {Count} products", entities.Count);
-            return entities.Select(e => e.Id);
+            return new BaseResponse
+            {
+                Message = "Bulk created",
+                Data = entities.Select(e => e.Id)
+            };
         }
 
+        public async Task<BaseResponse> GetAsync(long id, CancellationToken ct)
+        {
+            var p = await _repo.FindAsync(x => x.Id == id && !x.IsDeleted,
+                                          asNoTracking: true);
+            if (p is null) throw new ItemNotFoundOrNullError($"Product {id} not found");
 
-        public async Task<bool> UpdateAsync(long id, UpdateProductRequest req, CancellationToken ct)
+            return new BaseResponse
+            {
+                Data = new ProductDto(p.Id, p.Name, p.Price)
+            };
+        }
+
+        public async Task<BaseResponse> ListAsync(int skip, int limit, CancellationToken ct)
+        {
+            if (limit <= 0) throw new UserError("Limit must be greater than 0");
+
+            var (rows, total, left) = await _repo.FindAllAsync(
+                x => !x.IsDeleted, limit, skip,
+                returnPaginationResult: true,
+                asNoTracking: true);
+
+            return new BaseResponse
+            {
+                Data = new
+                {
+                    Products = rows.Select(Map),
+                    Pagination = new PaginationResult
+                    {
+                        TotalDocuments = total,
+                        DocumentsLeft = left
+                    }
+                }
+            };
+        }
+
+        public async Task<BaseResponse> UpdateAsync(long id, UpdateProductRequest req, CancellationToken ct)
         {
             ValidateRequest(req);
+            var p = await _repo.FindAsync(x => x.Id == id);
+            if (p is null) throw new ItemNotFoundOrNullError($"Product {id} not found");
 
-            var prod = await _repo.FindAsync(x => x.Id == id);
-            if (prod is null)
-                throw new ItemNotFoundOrNullError($"Product {id} not found");
-
-            prod.Name = req.Name;
-            prod.Price = req.Price;
-            _repo.Update(prod);
+            p.Name = req.Name;
+            p.Price = req.Price;
+            _repo.Update(p);
             await _uow.SaveChangesAsync();
 
-            _log.LogInformation("Product {Id} updated", id);
-            return true;
+            return new BaseResponse { Message = "Product updated" };
         }
 
-        public async Task<int> BulkUpdateAsync(IEnumerable<BulkUpdateDto> batch, CancellationToken ct)
+        public async Task<BaseResponse> BulkUpdateAsync(IEnumerable<BulkUpdateDto> batch, CancellationToken ct)
         {
             int updated = 0;
-
             foreach (var item in batch)
             {
                 ValidateRequest(new UpdateProductRequest(item.Name, item.Price));
-
                 var p = await _repo.FindAsync(x => x.Id == item.Id);
                 if (p is null) continue;
 
@@ -106,43 +120,40 @@ namespace Devoted.Business.Services
                 _repo.Update(p);
                 updated++;
             }
-
             if (updated > 0) await _uow.SaveChangesAsync();
-            _log.LogInformation("Bulk updated {Count} products", updated);
-            return updated;
+
+            return new BaseResponse
+            {
+                Message = $"Updated {updated} products"
+            };
         }
 
-
-        public async Task<bool> SoftDeleteAsync(long id, CancellationToken ct)
+        public async Task<BaseResponse> DeleteAsync(long id, CancellationToken ct)
         {
             if (!await _repo.SoftDeleteAsync(id))
                 throw new ItemNotFoundOrNullError($"Product {id} not found");
-
             await _uow.SaveChangesAsync();
-            _log.LogInformation("Product {Id} soft‑deleted", id);
-            return true;
+
+            return new BaseResponse { Message = "Product deleted" };
         }
 
-        public async Task<int> BulkSoftDeleteAsync(IEnumerable<long> ids, CancellationToken ct)
+        public async Task<BaseResponse> BulkDeleteAsync(IEnumerable<long> ids, CancellationToken ct)
         {
             int n = 0;
             foreach (var id in ids)
                 if (await _repo.SoftDeleteAsync(id)) n++;
-
-            if (n == 0)
-                throw new ItemNotFoundOrNullError("No valid product ids supplied");
-
+            if (n == 0) throw new ItemNotFoundOrNullError("No valid product ids supplied");
             await _uow.SaveChangesAsync();
-            _log.LogInformation("Soft‑deleted {Count} products", n);
-            return n;
+
+            return new BaseResponse
+            {
+                Message = $"Soft-deleted {n} products"
+            };
         }
 
-        public async Task<bool> RestoreAsync(long id, CancellationToken ct)
+        public async Task<BaseResponse> RestoreAsync(long id, CancellationToken ct)
         {
-            var p = await _repo.FindAsync(
-            x => x.Id == id,
-            includeDeleted: true
-            );
+            var p = await _repo.FindAsync(x => x.Id == id, includeDeleted: true);
             if (p is null || !p.IsDeleted)
                 throw new ItemNotFoundOrNullError($"Product {id} not found or not deleted");
 
@@ -151,18 +162,15 @@ namespace Devoted.Business.Services
             _repo.Update(p);
             await _uow.SaveChangesAsync();
 
-            _log.LogInformation("Product {Id} restored", id);
-            return true;
+            return new BaseResponse { Message = "Product restored" };
         }
 
-        public async Task<int> BulkRestoreAsync(IEnumerable<long> ids, CancellationToken ct)
+        public async Task<BaseResponse> BulkRestoreAsync(IEnumerable<long> ids, CancellationToken ct)
         {
             int n = 0;
             foreach (var id in ids)
             {
-                var p = await _repo.FindAsync(
-                    x => x.Id == id,
-                    includeDeleted:true);
+                var p = await _repo.FindAsync(x => x.Id == id, includeDeleted: true);
                 if (p is null || !p.IsDeleted) continue;
 
                 p.IsDeleted = false;
@@ -170,15 +178,14 @@ namespace Devoted.Business.Services
                 _repo.Update(p);
                 n++;
             }
-
-            if (n == 0)
-                throw new ItemNotFoundOrNullError("No products could be restored");
-
+            if (n == 0) throw new ItemNotFoundOrNullError("No products could be restored");
             await _uow.SaveChangesAsync();
-            _log.LogInformation("Restored {Count} products", n);
-            return n;
-        }
 
+            return new BaseResponse
+            {
+                Message = $"Restored {n} products"
+            };
+        }
 
         private static void ValidateRequest(CreateProductRequest req)
         {
@@ -196,6 +203,7 @@ namespace Devoted.Business.Services
                 throw new UserError("Price must be positive");
         }
 
-        private static ProductDto Map(Products p) => new(p.Id, p.Name, p.Price);
+        private static ProductDto Map(Products p)
+            => new(p.Id, p.Name, p.Price);
     }
 }
