@@ -1,0 +1,19 @@
+# --- Visual Studio & .NET ---
+.vs/
+*.user
+*.suo
+
+# Build artifacts
+bin/
+obj/
+TestResults/
+*.dll
+*.exe
+
+# Rider / ReSharper
+.idea/
+*.DotSettings*
+
+# OS junk
+.DS_Store
+Thumbs.db
